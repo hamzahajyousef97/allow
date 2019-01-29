@@ -118,7 +118,7 @@ summerRouter.route('/:summerId')
     res.end('POST operation not supported on /summers/' + req.params.summerId);
 })
 
-.put(cors.corsWithOptions, authenticate.verifyUser,authenticate.verifyAdmin, (req,res,next) => {
+.put(cors.corsWithOptions, authenticate.verifyUser, (req,res,next) => {
     Summers.findByIdAndUpdate(req.params.summerId, {
         $set: req.body
     }, { new: true})
@@ -163,7 +163,9 @@ summerRouter.route('/:summerId/comments')
 })
 
 .post(cors.corsWithOptions, authenticate.verifyUser, (req,res,next) => {
-    Summers.findById(req.params.summerId)
+    Summers.findByIdAndUpdate(req.params.summerId,
+        { $inc: { commentNum: 1 } },
+        { new: true })
     .then((summer) => {
         if (summer != null) {
             req.body.author = req.user._id;
@@ -294,32 +296,41 @@ summerRouter.route('/:summerId/comments/:commentId')
     .catch((err) => next(err));
 })
 
-.delete(cors.corsWithOptions, authenticate.verifyUser, authenticate.verifyAdmin, (req,res,next) => {
-    Summers.findById(req.params.summerId)
+.delete(cors.corsWithOptions, authenticate.verifyUser, (req,res,next) => {
+    Summers.findByIdAndUpdate(req.params.summerId,
+        { $inc: { commentNum: -1 } },
+        { new: true })
     .then((summer) => {
-        if (summer != null && summer.comments.id(req.params.commentId) != null) {
-            summer.comments.id(req.params.commentId).remove();
-            summer.save()
-            .then((summer) => {
-                Summers.findById(summer._id)
-                .populate('comments.author')
-                .populate('likes.author')
+        if (req.user.admin === true || JSON.stringify(summer.likes.id(req.params.likeId).author._id) == JSON.stringify(req.user._id)) {
+            if (summer != null && summer.comments.id(req.params.commentId) != null) {
+                summer.comments.id(req.params.commentId).remove();
+                summer.save()
                 .then((summer) => {
-                    res.statusCode = 200;
-                    res.setHeader('Content-Type', 'application/json');
-                    res.json(summer);
-                })
-            }, (err) => next(err));
-        }
-        else if (summer == null) {
-            err = new Error('summer ' + req.params.summerId + ' not found ');
-            err.status = 404;
-            return next(err);
+                    Summers.findById(summer._id)
+                    .populate('comments.author')
+                    .populate('likes.author')
+                    .then((summer) => {
+                        res.statusCode = 200;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.json(summer);
+                    })
+                }, (err) => next(err));
+            }
+            else if (summer == null) {
+                err = new Error('summer ' + req.params.summerId + ' not found ');
+                err.status = 404;
+                return next(err);
+            }
+            else {
+                err = new Error('Comment ' + req.params.commentId + ' not found ');
+                err.status = 404;
+                return next(err);  
+            }
         }
         else {
-            err = new Error('Comment ' + req.params.commentId + ' not found ');
-            err.status = 404;
-            return next(err);  
+            var err = new Error('You are not authorized to delete this comment!');
+            err.status = 403;
+            next(err);
         }
     }, (err) => next(err))
     .catch((err) => next(err));

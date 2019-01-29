@@ -166,7 +166,9 @@ winterRouter.route('/:winterId/comments')
 })
 
 .post(cors.corsWithOptions, authenticate.verifyUser, (req,res,next) => {
-    Winters.findById(req.params.winterId)
+    Winters.findByIdAndUpdate(req.params.winterId,
+        { $inc: { commentNum: 1 } },
+        { new: true })
     .then((winter) => {
         if (winter != null) {
             req.body.author = req.user._id;
@@ -298,32 +300,41 @@ winterRouter.route('/:winterId/comments/:commentId')
     .catch((err) => next(err));
 })
 
-.delete(cors.corsWithOptions, authenticate.verifyUser, authenticate.verifyAdmin, (req,res,next) => {
-    Winters.findById(req.params.winterId)
+.delete(cors.corsWithOptions, authenticate.verifyUser, (req,res,next) => {
+    Winters.findByIdAndUpdate(req.params.winterId,
+        { $inc: { commentNum: -1 } },
+        { new: true })
     .then((winter) => {
-        if (winter != null && winter.comments.id(req.params.commentId) != null) {
-            winter.comments.id(req.params.commentId).remove();
-            winter.save()
-            .then((winter) => {
-                Winters.findById(winter._id)
-                .populate('comments.author')
-                .populate('likes.author')
+        if (req.user.admin === true || JSON.stringify(summer.likes.id(req.params.likeId).author._id) == JSON.stringify(req.user._id)) {
+            if (winter != null && winter.comments.id(req.params.commentId) != null) {
+                winter.comments.id(req.params.commentId).remove();
+                winter.save()
                 .then((winter) => {
-                    res.statusCode = 200;
-                    res.setHeader('Content-Type', 'application/json');
-                    res.json(winter);
-                })
-            }, (err) => next(err));
-        }
-        else if (winter == null) {
-            err = new Error('winter ' + req.params.winterId + ' not found ');
-            err.status = 404;
-            return next(err);
+                    Winters.findById(winter._id)
+                    .populate('comments.author')
+                    .populate('likes.author')
+                    .then((winter) => {
+                        res.statusCode = 200;
+                        res.setHeader('Content-Type', 'application/json');
+                        res.json(winter);
+                    })
+                }, (err) => next(err));
+            }
+            else if (winter == null) {
+                err = new Error('winter ' + req.params.winterId + ' not found ');
+                err.status = 404;
+                return next(err);
+            }
+            else {
+                err = new Error('Comment ' + req.params.commentId + ' not found ');
+                err.status = 404;
+                return next(err);  
+            }
         }
         else {
-            err = new Error('Comment ' + req.params.commentId + ' not found ');
-            err.status = 404;
-            return next(err);  
+            var err = new Error('You are not authorized to delete this comment!');
+            err.status = 403;
+            next(err);
         }
     }, (err) => next(err))
     .catch((err) => next(err));

@@ -14,13 +14,11 @@ var indexRouter = require('./routes/index');
 var usersRouter = require('./routes/users');
 
 var uploadRouter = require('./routes/uploadRouter');
-var favoriteRouter = require('./routes/favoriteRouter');
 
-var winterRouter = require('./routes/winterRouter');
-var summerRouter = require('./routes/summerRouter');
+var cleanRouter = require('./routes/cleanRouter');
+var foodRouter = require('./routes/foodRouter');
+var diaperRouter = require('./routes/diaperRouter');
 var feedbackRouter = require('./routes/feedbackRouter');
-var favSummerRouter = require('./routes/favSummerRouter');
-var favWinterRouter = require('./routes/favWinterRouter');
 
 const mongoose = require('mongoose');
 
@@ -35,14 +33,12 @@ connect.then((db) => {
 
 var app = express();
 
-app.all('*', (req, res, next) => {
-  if (req.secure) {
-    return next();
-  }
-  else {
-    res.redirect(307, 'https://' + req.hostname + ':' + app.get('secPort') + req.url);
-  }
-});
+
+var http = require('http');
+var server = http.createServer(app);
+server.listen(8080);
+
+
 
 // view engine setup
 app.set('views', path.join(__dirname, 'views'));
@@ -51,7 +47,7 @@ app.set('view engine', 'jade');
 app.use(logger('dev'));
 app.use(bodyParser.json({limit: '50mb'}));
 app.use(bodyParser.urlencoded( {limit: '50mb', extended: true}));
-//app.use(cookieParser('12345-67890-09876-54321'));
+
 
 app.use(passport.initialize());
 
@@ -63,11 +59,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 
 app.use('/imageUpload', uploadRouter);
-app.use('/favoriteSummer', favSummerRouter);
-app.use('/favoriteWinter', favWinterRouter);
 
-app.use('/winters', winterRouter);
-app.use('/summers', summerRouter);
+app.use('/cleans', cleanRouter);
+app.use('/foods', foodRouter);
+app.use('/diapers', diaperRouter);
 app.use('/feedbacks', feedbackRouter);
 
 
